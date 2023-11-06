@@ -1,0 +1,138 @@
+var 
+  MyForm:TclForm;
+  BtnCekilisYap:TclButton;
+  LblDisplay:TclLabel;
+  MyMQTT : TclMQTT;
+  QMemList:TclJSonQuery;
+  MemberList:TclMemo;
+  CekilisTimer:TClTimer;
+  LblLyt : TclLayout;
+  
+  void MyMQTTPublishReceived;
+  {
+    if (Not Clomosy.PlatformIsMobile) //WINDOWS ISE
+    {
+      //If MyMQTT.ReceivedAlright Then
+        //LblDisplay.Caption :=  MyMQTT.ReceivedMessage;
+      if (CekilisTimer.Enabled && (MyMQTT.ReceivedMessage == 'durdur'))
+      {
+        CekilisTimer.Enabled = False;
+        BtnCekilisYap.Caption = 'Devam et';
+        LblDisplay.Caption = QMemList.FieldByName('Member_Name').AsString;
+        Clomosy.SendNotification('Tebrikler ',LblDisplay.Caption + ' Kazandınız',QMemList.FieldByName('Member_GUID').AsString);
+        MyMQTT.Send('Talihli:'+ LblDisplay.Caption + ' ('+QMemList.FieldByName('Member_GUID').AsString+')');
+      }
+    } 
+    else //WIN DEGILSE
+    {
+      if (POS('Talihli:',MyMQTT.ReceivedMessage)>0) 
+        LblDisplay.Caption =  'Kazanan ' + MyMQTT.ReceivedMessage;
+    }
+  }
+  
+  
+  void BtnCekilisYapClick;
+  {
+    MyMQTT.Send('durdur');
+  }
+  
+  void ProcOnCekilisTimer;
+  {
+    LblDisplay.Caption = QMemList.FieldByName('Member_Name').AsString;
+    Clomosy.ProcessMessages;
+    QMemList.Next;
+    if (QMemList.EOF) QMemList.First;
+  }
+  void BtnIsimKatistirClick;
+  {
+    if (Not CekilisTimer.Enabled) 
+      QMemList = Clomosy.DBCloudQueryWith(ftMembers,'','1=1 ORDER BY NEWID()');//her seferinde karışık member listesi al
+    CekilisTimer.Enabled = Not CekilisTimer.Enabled;
+    LblDisplay.Caption = '';
+    //LblDisplay.Visible := CekilisTimer.Enabled;
+    if (CekilisTimer.Enabled)  
+    BtnCekilisYap.Caption = 'Bekle' Else BtnCekilisYap.Caption = 'Devam et';
+  }
+{
+  MyForm = TclForm.Create(Self);
+  MyForm.SetFormBGImage('https://clomosy.com/theme/SurveyStyle4.png');
+  
+  LblLyt = MyForm.AddNewLayout(MyForm,'LblLyt');
+  LblLyt.Width = 100;
+  LblLyt.Height = 150;
+  LblLyt.Align = alTop;
+
+  
+  LblDisplay = MyForm.AddNewLabel(LblLyt,'LblDisplay','ÇEKİLİŞ UYGULAMASI');
+  LblDisplay.StyledSettings = ssFamily;
+  LblDisplay.TextSettings.Font.Size = 20;
+  LblDisplay.Align = alCenter;
+  LblDisplay.Width = LblDisplay.Width*3;
+  LblDisplay.Visible = True;
+  LblDisplay.Height = LblDisplay.Height*5;//yazılar uzun gelebildiği için
+  LblDisplay.TextSettings.FontColor = clAlphaColor.clHexToColor('#ffffff');
+
+
+  MyMQTT = MyForm.AddNewMQTTConnection(MyForm,'MyMQTT');
+  MyForm.AddNewEvent(MyMQTT,tbeOnMQTTPublishReceived,'MyMQTTPublishReceived');
+  MyMQTT.Channel = 'cekilis';//project guid + channel
+  MyMQTT.Connect;
+   
+  if (Clomosy.PlatformIsMobile) 
+  {
+    if (Clomosy.AppUserProfile==1) //mobilde Yonetici ise
+    {
+      LblDisplay.Caption = 'Talihli Kişiyi Belirlemek için Ekranda İsimler Geçmeye Başlayınca Aşağıdaki Butona Basın';
+      //BtnCekilisYap:= MyForm.AddNewButton(MyForm,'BtnCekilisYap','Çekilişi Yap');
+      //BtnCekilisYap.Height := BtnCekilisYap.Height * 3;
+      //BtnCekilisYap.Width := BtnCekilisYap.Width * 3;
+      //BtnCekilisYap.Align := alCenter;
+      
+      
+      BtnCekilisYap = MyForm.AddNewProButton(MyForm,'BtnCekilisYap','');
+      clComponent.SetupComponent(BtnCekilisYap,'{"caption":"Çekilişi Yap","Align" : "Center",
+      "Width" :'+IntToStr(BtnCekilisYap.Width * 3)+', 
+      "Height":'+IntToStr(BtnCekilisYap.Height * 3)+',
+      "RoundHeight":8,
+      "RoundWidth":8,
+      "BorderColor":"#ff0000",
+      "BorderWidth":2}');
+      
+      MyForm.AddNewEvent(BtnCekilisYap,tbeOnClick,'BtnCekilisYapClick');
+      
+    } 
+    else 
+    {//mobilde talihli adayı ise
+      LblDisplay.Caption = 'Talihli Kişi Bekleniyor';
+      LblDisplay.Align = alClient;
+    }
+  
+  } 
+  else 
+  {//windows ekran ise
+    //BtnCekilisYap= MyForm.AddNewButton(MyForm,'BtnCekilisYap','Başlat');
+    //BtnCekilisYap.Align = alCenter;
+    
+    
+     BtnCekilisYap = MyForm.AddNewProButton(MyForm,'BtnCekilisYap','');
+      clComponent.SetupComponent(BtnCekilisYap,'{"caption":"Başlat","Align" : "Center",
+      "RoundHeight":8,
+      "RoundWidth":8,
+      "BorderColor":"#ff0000",
+      "BorderWidth":2}');
+      
+    MyForm.AddNewEvent(BtnCekilisYap,tbeOnClick,'BtnIsimKatistirClick');
+    
+    QMemList = Clomosy.DBCloudQueryWith(ftMembers,'','1=1 ORDER BY NEWID()');//her seferinde karışık member listesi al
+    CekilisTimer= MyForm.AddNewTimer(MyForm,'CekilisTimer',1000);
+    CekilisTimer.Interval = 100;//100 milisaniye aralıklarla 
+    CekilisTimer.Enabled = False;
+    //LblDisplay.Visible = False;
+    QMemList.First;
+    MyForm.AddNewEvent(CekilisTimer,tbeOnTimer,'ProcOnCekilisTimer');
+     
+  }
+  
+  MyForm.Run;
+  
+}  
