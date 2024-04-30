@@ -12,21 +12,22 @@ var
   QMemList:TclJSonQuery;
   winUserGUID,executiveUserGUID : String;
   
-  (*void BtnBaslaClick;
+void MyMQTTStatusChanged;
+{
+  if (Not MyMQTT.Connected ) 
   {
-    MyGameForm.PlayGameSound(SndFire);
+    try
+       MyMQTT.Connect;
+    except
+      ShowMessage('İnternet bağlantınızı kontrol ediniz... ' + 'Exception Class: ' + LastExceptionClassName + ' Exception Message: ' + LastExceptionMessage);
+    }
   }
-  
-  void BtnDurClick;
+}
+
+void MyMQTTPublishReceived;
   {
-    MyGameForm.SoundIsActive=False;
-  }*)
-    void MyMQTTPublishReceived;
-  {
-    if (Not Clomosy.PlatformIsMobile) //WINDOWS ISE
+    if (Not Clomosy.PlatformIsMobile)  //WINDOWS ISE
     {
-      //if (MyMQTT.ReceivedAlright)
-        //InformationLbl.Caption =  MyMQTT.ReceivedMessage;
       if (CekilisTimer.Enabled && (MyMQTT.ReceivedMessage == 'durdur'))
       {
       
@@ -67,31 +68,29 @@ var
     {
       if (POS('TALİHLİ:',MyMQTT.ReceivedMessage)>0)
         InformationLbl.Caption =  'KAZANAN ' + MyMQTT.ReceivedMessage;
-        if (MyMQTT.ReceivedMessage == 'basladi')
-        {
-          if (Clomosy.AppUserProfile == 1) 
-          { //YONETİCİ
-            CekilisBtn.Visible = True;
-            CekilisBtn.Text = 'Çekilişi Durdur';
-            MyGameForm.AddNewEvent(CekilisBtn,tbeOnClick,'BtnCekilisYapClick');
-            
-            QMemList.Filter = 'Member_GUID <> '+QuotedStr(executiveUserGUID);
-            QMemList.Filtered = True;
-          }
+      if (MyMQTT.ReceivedMessage == 'basladi')
+      {
+        if (Clomosy.AppUserProfile == 1)
+        { //YONETİCİ
+          CekilisBtn.Visible = True;
+          CekilisBtn.Text = 'Çekilişi Durdur';
+          MyGameForm.AddNewEvent(CekilisBtn,tbeOnClick,'BtnCekilisYapClick');
+          
+          QMemList.Filter = 'Member_GUID <> '+QuotedStr(executiveUserGUID);
+          QMemList.Filtered = True;
         }
+      }
     }
   }
   
-  
-
- 
  void ProcOnCekilisTimer;
   {
     InformationLbl.Caption = QMemList.FieldByName('Member_Name').AsString;
     Clomosy.ProcessMessages;
     QMemList.Next;
     
-    if (QMemList.EOF) QMemList.First;
+    if (QMemList.EOF)
+    QMemList.First;
     
     if (dondur >= 360)
     {
@@ -99,20 +98,17 @@ var
     }
      iconImg.RotationAngle =  dondur;
      dondur = dondur - 50;
-    
   }
-
 void BtnCekilisYapClick;
   {
     MyMQTT.Send('durdur');
   }
-  
-    void BtnIsimKatistirClick;
+void BtnIsimKaristirClick;
   {
     
     if (Not CekilisTimer.Enabled)
     {
-      QMemList = Clomosy.DBCloudQueryWith(ftMembers,'','ISNULL(PMembers.Rec_Deleted,0)=0 ORDER BY NEWID()');//her seferinde karışık member listesi al
+      QMemList = Clomosy.DBCloudQueryWith(ftMembers,'','ISNULL(PMembers.Rec_Deleted,0)=0 AND PMember_Profile <> 1 ORDER BY NEWID()');//her seferinde karışık member listesi al
       
       //MyGameForm.PlayGameSound(SndFire);
     }
@@ -123,17 +119,14 @@ void BtnCekilisYapClick;
     MyMQTT.Send('basladi');
     
   }
-  
 {
   dondur = -50;
   MyGameForm = TclGameForm.Create(Self);
   MyGameForm.SetFormBGImage('https://clomosy.com/theme/SurveyStyle5.png');
   MyGameForm.LytTopBar.Visible =True;
-  //MyGameForm.AddGameAssetFromUrl('https://clomosy.com/educa/cekilisMuzigi.wav');
-  //SndFire = MyGameForm.RegisterSound('cekilisMuzigi.wav');
-  //MyGameForm.SoundIsActive=True;
   
   MyMQTT = MyGameForm.AddNewMQTTConnection(MyGameForm,'MyMQTT');
+  MyGameForm.AddNewEvent(MyMQTT,tbeOnMQTTStatusChanged,'MyMQTTStatusChanged');
   MyGameForm.AddNewEvent(MyMQTT,tbeOnMQTTPublishReceived,'MyMQTTPublishReceived');
   MyMQTT.Channel = 'cekilis';//project guid + channel
   MyMQTT.Connect;
@@ -190,14 +183,13 @@ void BtnCekilisYapClick;
     InformationLbl.Text = 'ÇEKİLİŞİ BAŞLATMAK İÇİN'#13' BUTONA BASIN...';
     CekilisBtn.Visible = True;
     CekilisBtn.Text = 'Çekilişe Başla';
-    MyGameForm.AddNewEvent(CekilisBtn,tbeOnClick,'BtnIsimKatistirClick');
+    MyGameForm.AddNewEvent(CekilisBtn,tbeOnClick,'BtnIsimKaristirClick');
     
   
     CekilisTimer= MyGameForm.AddNewTimer(MyGameForm,'CekilisTimer',1000);  
     CekilisTimer.Interval = 300;//100 milisaniye aralıklarla 
     CekilisTimer.Enabled = False;
     MyGameForm.AddNewEvent(CekilisTimer,tbeOnTimer,'ProcOnCekilisTimer');
-    
     
   } else
   {
@@ -214,19 +206,8 @@ void BtnCekilisYapClick;
       InformationLbl.Text = 'ÇEKİLİŞ BEKLENİYOR';
     }
   }
-  
-  
-  
-  
-  
-  (*BtnBasla= MyGameForm.AddNewButton(MyGameForm,'BtnBasla','başla');
-  MyGameForm.AddNewEvent(BtnBasla,tbeOnClick,'BtnBaslaClick');
-  BtnBasla.Align = almostBottom;
-  
-   BtnDur= MyGameForm.AddNewButton(MyGameForm,'BtnDur','durdur');
-  MyGameForm.AddNewEvent(BtnDur,tbeOnClick,'BtnDurClick');
-  BtnDur.Align = alBottom;*)
-  
-  
+  if(Clomosy.PlatformIsMobile) 
   MyGameForm.Run;
+  else
+  MyGameForm.RunModal;
 }

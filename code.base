@@ -12,25 +12,26 @@ var
   QMemList:TclJSonQuery;
   winUserGUID,executiveUserGUID : String;
   
-  (*Procedure BtnBaslaClick;
+procedure MyMQTTStatusChanged;
+begin
+  if Not MyMQTT.Connected then
   begin
-    MyGameForm.PlayGameSound(SndFire);
-  End;
-  
-  Procedure BtnDurClick;
+    try
+       MyMQTT.Connect;
+    except
+      ShowMessage('İnternet bağlantınızı kontrol ediniz... ' + 'Exception Class: ' + LastExceptionClassName + ' Exception Message: ' + LastExceptionMessage);
+    end;
+  end;
+end;
+
+procedure MyMQTTPublishReceived;
   begin
-    MyGameForm.SoundIsActive:=False;
-  End;*)
-    Procedure MyMQTTPublishReceived;
-  begin
-    If Not Clomosy.PlatformIsMobile Then //WINDOWS ISE
+    if Not Clomosy.PlatformIsMobile then  //WINDOWS ISE
     begin
-      //If MyMQTT.ReceivedAlright Then
-        //InformationLbl.Caption :=  MyMQTT.ReceivedMessage;
-      If CekilisTimer.Enabled And (MyMQTT.ReceivedMessage = 'durdur') Then
+      if (CekilisTimer.Enabled) and (MyMQTT.ReceivedMessage = 'durdur') then
       begin
       
-        if Clomosy.AppUserProfile = 1 then 
+        if Clomosy.AppUserProfile = 1 then
         begin
           CekilisBtn.Visible := False;
         end;
@@ -46,15 +47,15 @@ var
         InformationLbl.Caption := QMemList.FieldByName('Member_Name').AsString;
         Clomosy.SendNotification('','Tebrikler Çekilişi Kazandınız',QMemList.FieldByName('Member_GUID').AsString);
         MyMQTT.Send('TALİHLİ:'+#13+ InformationLbl.Caption);
-      End;
+      end;
       if MyMQTT.ReceivedMessage = 'basladi' then
       begin 
           CekilisBtn.Enabled := True; 
-          If CekilisTimer.Enabled Then 
+          if CekilisTimer.Enabled then
           begin
           CekilisBtn.Caption := 'Bekle';
           //MyGameForm.SoundIsActive:=False;
-          end
+          end;
           Else 
           begin
           CekilisBtn.Caption := 'Devam et';
@@ -63,35 +64,34 @@ var
           QMemList.Filter := 'Member_GUID <> '+QuotedStr(winUserGUID);
           QMemList.Filtered := True;
      end;
-    End Else //WIN DEGILSE
+    end; 
+    Else //WIN DEGILSE
     begin
-      If POS('TALİHLİ:',MyMQTT.ReceivedMessage)>0 Then
+      if POS('TALİHLİ:',MyMQTT.ReceivedMessage)>0 then
         InformationLbl.Caption :=  'KAZANAN ' + MyMQTT.ReceivedMessage;
-        if MyMQTT.ReceivedMessage = 'basladi' then
-        begin
-          if Clomosy.AppUserProfile = 1 then 
-          begin //YONETİCİ
-            CekilisBtn.Visible := True;
-            CekilisBtn.Text := 'Çekilişi Durdur';
-            MyGameForm.AddNewEvent(CekilisBtn,tbeOnClick,'BtnCekilisYapClick');
-            
-            QMemList.Filter := 'Member_GUID <> '+QuotedStr(executiveUserGUID);
-            QMemList.Filtered := True;
-          end;
+      if MyMQTT.ReceivedMessage = 'basladi' then
+      begin
+        if Clomosy.AppUserProfile = 1 then
+        begin //YONETİCİ
+          CekilisBtn.Visible := True;
+          CekilisBtn.Text := 'Çekilişi Durdur';
+          MyGameForm.AddNewEvent(CekilisBtn,tbeOnClick,'BtnCekilisYapClick');
+          
+          QMemList.Filter := 'Member_GUID <> '+QuotedStr(executiveUserGUID);
+          QMemList.Filtered := True;
         end;
-    End;
-  End;
+      end;
+    end;
+  end;
   
-  
-
- 
- Procedure ProcOnCekilisTimer;
+ procedure ProcOnCekilisTimer;
   begin
     InformationLbl.Caption := QMemList.FieldByName('Member_Name').AsString;
     Clomosy.ProcessMessages;
     QMemList.Next;
     
-    If QMemList.EOF Then QMemList.First;
+    if QMemList.EOF then
+    QMemList.First;
     
     if dondur >= 360 then
     begin
@@ -99,20 +99,17 @@ var
     end;
      iconImg.RotationAngle :=  dondur;
      dondur := dondur - 50;
-    
-  End;
-
-Procedure BtnCekilisYapClick;
-  Begin
+  end;
+procedure BtnCekilisYapClick;
+  begin
     MyMQTT.Send('durdur');
-  End;
-  
-    procedure BtnIsimKatistirClick;
-  Begin
+  end;
+procedure BtnIsimKaristirClick;
+  begin
     
-    If Not CekilisTimer.Enabled Then
+    if Not CekilisTimer.Enabled then
     begin
-      QMemList := Clomosy.DBCloudQueryWith(ftMembers,'','ISNULL(PMembers.Rec_Deleted,0)=0 ORDER BY NEWID()');//her seferinde karışık member listesi al
+      QMemList := Clomosy.DBCloudQueryWith(ftMembers,'','ISNULL(PMembers.Rec_Deleted,0)=0 AND PMember_Profile <> 1 ORDER BY NEWID()');//her seferinde karışık member listesi al
       
       //MyGameForm.PlayGameSound(SndFire);
     end;
@@ -122,18 +119,15 @@ Procedure BtnCekilisYapClick;
     
     MyMQTT.Send('basladi');
     
-  End;
-  
+  end;
 begin
   dondur := -50;
   MyGameForm := TclGameForm.Create(Self);
   MyGameForm.SetFormBGImage('https://clomosy.com/theme/SurveyStyle5.png');
   MyGameForm.LytTopBar.Visible :=True;
-  //MyGameForm.AddGameAssetFromUrl('https://clomosy.com/educa/cekilisMuzigi.wav');
-  //SndFire := MyGameForm.RegisterSound('cekilisMuzigi.wav');
-  //MyGameForm.SoundIsActive:=True;
   
   MyMQTT := MyGameForm.AddNewMQTTConnection(MyGameForm,'MyMQTT');
+  MyGameForm.AddNewEvent(MyMQTT,tbeOnMQTTStatusChanged,'MyMQTTStatusChanged');
   MyGameForm.AddNewEvent(MyMQTT,tbeOnMQTTPublishReceived,'MyMQTTPublishReceived');
   MyMQTT.Channel := 'cekilis';//project guid + channel
   MyMQTT.Connect;
@@ -190,7 +184,7 @@ begin
     InformationLbl.Text := 'ÇEKİLİŞİ BAŞLATMAK İÇİN'#13' BUTONA BASIN...';
     CekilisBtn.Visible := True;
     CekilisBtn.Text := 'Çekilişe Başla';
-    MyGameForm.AddNewEvent(CekilisBtn,tbeOnClick,'BtnIsimKatistirClick');
+    MyGameForm.AddNewEvent(CekilisBtn,tbeOnClick,'BtnIsimKaristirClick');
     
   
     CekilisTimer:= MyGameForm.AddNewTimer(MyGameForm,'CekilisTimer',1000);  
@@ -198,8 +192,8 @@ begin
     CekilisTimer.Enabled := False;
     MyGameForm.AddNewEvent(CekilisTimer,tbeOnTimer,'ProcOnCekilisTimer');
     
-    
-  end else
+  end; 
+  else
   begin
     if Clomosy.AppUserProfile = 1 then
     begin //YÖNETİCİİ
@@ -207,26 +201,14 @@ begin
       executiveUserGUID := Clomosy.AppUserGUID;
       QMemList.Filter := 'Member_GUID <> '+QuotedStr(executiveUserGUID);
       QMemList.Filtered := True;
-      
-    
-    end else
+    end; 
+    else
     begin // OYUNCULAR
       InformationLbl.Text := 'ÇEKİLİŞ BEKLENİYOR';
     end;
   end;
-  
-  
-  
-  
-  
-  (*BtnBasla:= MyGameForm.AddNewButton(MyGameForm,'BtnBasla','başla');
-  MyGameForm.AddNewEvent(BtnBasla,tbeOnClick,'BtnBaslaClick');
-  BtnBasla.Align := almostBottom;
-  
-   BtnDur:= MyGameForm.AddNewButton(MyGameForm,'BtnDur','durdur');
-  MyGameForm.AddNewEvent(BtnDur,tbeOnClick,'BtnDurClick');
-  BtnDur.Align := alBottom;*)
-  
-  
+  if Clomosy.PlatformIsMobile then
   MyGameForm.Run;
-End;
+  else
+  MyGameForm.RunModal;
+end;
